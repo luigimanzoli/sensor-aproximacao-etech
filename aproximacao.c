@@ -23,8 +23,8 @@ const int YAXIS = 27; const int ADCC_1 = 1; // Pino do eixo Y do Joystick e seu 
 
 const float PWM_DIVISER = 16.0; // Definindo o Divisor do PWM
 const uint16_t PERIOD = 2048; // Definindo o WRAP ou máxima contagem do PWM
-uint16_t R_LED_level, B_LED_level = 100;
-uint R_LED_slice, B_LED_slice;
+uint16_t R_LED_level, G_LED_level ,B_LED_level = 100;
+uint R_LED_slice, G_LED_slice, B_LED_slice;
 
 // Definição dos LEDs RGB
 #define R_LED 13
@@ -47,10 +47,6 @@ ssd1306_t ssd;
 
 // Inicialização dos lEDs e Botões
 void init_all() {
-    gpio_init(G_LED);
-    gpio_set_dir(G_LED, GPIO_OUT);
-    gpio_put(G_LED, 0);
-
     gpio_init(A_BUTTON);
     gpio_set_dir(A_BUTTON, GPIO_IN);
     gpio_pull_up(A_BUTTON);
@@ -81,7 +77,14 @@ void pwm_setup(){
     pwm_set_clkdiv(B_LED_slice, PWM_DIVISER);            
     pwm_set_wrap(B_LED_slice, PERIOD);
     pwm_set_gpio_level(B_LED, B_LED_level);              
-    pwm_set_enabled(B_LED_slice, true); 
+    pwm_set_enabled(B_LED_slice, true);
+    
+    gpio_set_function(G_LED, GPIO_FUNC_PWM); 
+    uint G_LED_slice = pwm_gpio_to_slice_num(G_LED);   
+    pwm_set_clkdiv(G_LED_slice, PWM_DIVISER);            
+    pwm_set_wrap(G_LED_slice, PERIOD);
+    pwm_set_gpio_level(G_LED, G_LED_level);              
+    pwm_set_enabled(G_LED_slice, true);
 }
 
 // Função que é chamada quando ocorre a interrupção
@@ -161,18 +164,30 @@ int main() {
 
         // Caso o estado do LED seja ativo, controla sua intensidade 
         if (led_state == true){
-            if (x_value > 2048){
-                pwm_set_gpio_level(B_LED, x_value-2048);
+            if (x_value > 2048 && x_value < 2730){
+                //pwm_set_gpio_level(B_LED, x_value-2048);
+                pwm_set_gpio_level(G_LED, 4096);
+                pwm_set_gpio_level(R_LED, (x_value-2048)*3);
+            }
+            else if (x_value > 2730 && x_value < 3413){
+                pwm_set_gpio_level(G_LED, 4096 - (x_value-2048)*3);
+                pwm_set_gpio_level(R_LED, 4096);
+
+            }
+            else if (x_value > 3413){
+                pwm_set_gpio_level(G_LED, 0);
+                pwm_set_gpio_level(R_LED, 4096);
+
             }
             else if (x_value < 2048){
-                pwm_set_gpio_level(B_LED, 2048-x_value);
+                //pwm_set_gpio_level(B_LED, 2048-x_value);
             }
 
             if (y_value > 2048){
-                pwm_set_gpio_level(R_LED, y_value-2048); 
+                //pwm_set_gpio_level(R_LED, y_value-2048); 
             }
             else if (y_value < 2048){
-                pwm_set_gpio_level(R_LED, 2048-y_value);
+                //pwm_set_gpio_level(R_LED, 2048-y_value);
             }
         }
         
