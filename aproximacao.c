@@ -47,6 +47,10 @@ uint R_LED_slice, G_LED_slice, B_LED_slice;
 #define B_BUTTON 6
 #define J_BUTTON 22 // Botão do Joystick
 
+// Definição dos pinos do Buzzer
+#define A_BUZZER 21
+#define B_BUZZER 10
+
 // Variável ligada ao debounce dos botões
 static volatile uint32_t last_time = 0; 
 
@@ -65,6 +69,12 @@ void init_all() {
     gpio_init(J_BUTTON);
     gpio_set_dir(J_BUTTON, GPIO_IN);
     gpio_pull_up(J_BUTTON);
+
+    gpio_init(A_BUZZER);
+    gpio_set_dir(A_BUZZER, GPIO_OUT);
+
+    gpio_init(B_BUZZER);
+    gpio_set_dir(B_BUZZER, GPIO_OUT);
 }
 
 void adc_setup(){
@@ -96,6 +106,11 @@ void pwm_setup(){
     pwm_set_wrap(G_LED_slice, PERIOD);
     pwm_set_gpio_level(G_LED, G_LED_level);              
     pwm_set_enabled(G_LED_slice, true);
+}
+
+void get_buzzer(bool state){
+    gpio_put(A_BUZZER, state);
+    gpio_put(B_BUZZER, state);
 }
 
 // Função que é chamada quando ocorre a interrupção
@@ -133,6 +148,11 @@ uint32_t matrix_rgb(double b, double r, double g)
   B = b * 255;
   return (G << 24) | (R << 16) | (B << 8);
 }
+
+// Inicialização do PIO e das variáveis necessárias
+PIO pio = pio0;
+uint32_t led_value;
+uint offset, sm;
 
 // Configura a PIO
 void pio_config(PIO pio, uint *offset, uint *sm) {
@@ -236,6 +256,40 @@ void print_digit(int digit, PIO pio, uint sm, double r, double g, double b){
     }
 }
 
+void alarm_animation(PIO pio, uint sm, double r, double g, double b){
+
+    double frame[25] = {
+        0.0, 0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0, 0.0
+    };
+
+    // Iniciando a variável que detém informação das cores de cada LED da matriz
+    uint32_t led_value;
+
+    double intensity_values[5] = {1.0, 0.7, 0.5, 0.3, 0.0};
+    double inty = 0;
+
+    for (int j = 0; j < 5; j++){
+        inty = intensity_values[j];
+        for (int16_t i = 0; i < NUM_PIXELS; i++) {
+            led_value = matrix_rgb(inty*b*(frame[24 - i]), inty*r*(frame[24 - i]), inty*g*(frame[24 - i])); // Apenas o valor vermelho está ativo
+            pio_sm_put_blocking(pio, sm, led_value); // Envia o valor para o LED
+        }
+        sleep_ms(100-20*j);
+    }
+
+}
+
+void alarm(){
+
+    get_buzzer(1);
+    alarm_animation(pio, sm, 1, 0, 0);   
+
+}
+
 // Função principal
 int main() {
     // Inicializa clock, stdio e configurações
@@ -244,10 +298,7 @@ int main() {
     adc_setup();
     pwm_setup();
 
-    // Inicialização do PIO e das variáveis necessárias
-    PIO pio = pio0;
-    uint32_t led_value;
-    uint offset, sm;
+    
 
     pio_config(pio, &offset, &sm);
 
@@ -299,18 +350,20 @@ int main() {
                 //pwm_set_gpio_level(B_LED, x_value-2048);
                 pwm_set_gpio_level(G_LED, 4096);
                 pwm_set_gpio_level(R_LED, (x_value-2048)*3);
+                print_digit(8, pio, sm, 0, 0, 0);
+                get_buzzer(0);
             }
             else if (x_value > 2730 && x_value < 3413){
                 pwm_set_gpio_level(G_LED, 4096 - (x_value-2048)*3);
                 pwm_set_gpio_level(R_LED, 4096);
                 print_digit(8, pio, sm, 0, 0, 0);
+                get_buzzer(0);
 
             }
             else if (x_value > 3413){
                 pwm_set_gpio_level(G_LED, 0);
                 pwm_set_gpio_level(R_LED, 4096);
-                print_digit(8, pio, sm, 1, 0, 0);
-
+                alarm();
             }
             else if (x_value < 2048){
                 //pwm_set_gpio_level(B_LED, 2048-x_value);
@@ -348,7 +401,7 @@ int main() {
 
         ssd1306_send_data(&ssd); // Manda a informação para o aproximacao
 
-        sleep_ms(50);
+        sleep_ms(10);
     }
     return 0;
 
