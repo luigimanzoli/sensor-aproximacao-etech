@@ -44,6 +44,8 @@ pico_set_program_version(aproximacao "0.1")
 pico_enable_stdio_uart(aproximacao 1)
 pico_enable_stdio_usb(aproximacao 1)
 
+pico_generate_pio_header(aproximacao ${CMAKE_CURRENT_LIST_DIR}/aproximacao.pio)
+
 target_sources(aproximacao PRIVATE aproximacao.c)
 
 # Add the standard library to the build
@@ -52,6 +54,8 @@ target_link_libraries(aproximacao PRIVATE
         hardware_pwm
 	    hardware_adc
         hardware_i2c
+        hardware_pio
+
         )
 
 # Add the standard include files to the build

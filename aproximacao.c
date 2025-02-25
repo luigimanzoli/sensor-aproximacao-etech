@@ -3,9 +3,11 @@
 #include "pico/stdlib.h"
 #include "hardware/adc.h"
 #include "hardware/pwm.h"
+#include "hardware/pio.h"
+#include "hardware/clocks.h"
 #include <math.h>
 
-// Bibliotecas referentes à configuração do display
+// Bibliotecas referentes à configuração do aproximacao
 #include "hardware/i2c.h"
 #include "inc/ssd1306.h"
 #include "inc/font.h"
@@ -13,6 +15,15 @@
 #define I2C_SDA 14
 #define I2C_SCL 15
 #define endereco 0x3C
+
+// Arquivo .pio
+#include "aproximacao.pio.h"
+
+// Número de LEDs da matriz
+#define NUM_PIXELS 25
+
+// Pino de saída da matriz de LEDs
+#define OUT_PIN 7
 
 // Definição dos pinos ADC
 
@@ -42,7 +53,7 @@ static volatile uint32_t last_time = 0;
 // Variável para controlar o estado do LED
 static volatile bool led_state = true; 
 
-// Inicializa a estrutura do display
+// Inicializa a estrutura do aproximacao
 ssd1306_t ssd; 
 
 // Inicialização dos lEDs e Botões
@@ -114,6 +125,117 @@ void gpio_irq_handler(uint gpio, uint32_t events){
 
 }
 
+uint32_t matrix_rgb(double b, double r, double g)
+{
+  unsigned char R, G, B;
+  R = r * 255;
+  G = g * 255;
+  B = b * 255;
+  return (G << 24) | (R << 16) | (B << 8);
+}
+
+// Configura a PIO
+void pio_config(PIO pio, uint *offset, uint *sm) {
+    *offset = pio_add_program(pio, &aproximacao_program);
+    *sm = pio_claim_unused_sm(pio, true);
+    aproximacao_program_init(pio, *sm, *offset, OUT_PIN);
+}
+
+double digits[10][25] = {
+    { // Digito 0
+        0.0, 1.0, 1.0, 1.0, 0.0,
+        0.0, 1.0, 0.0, 1.0, 0.0,
+        0.0, 1.0, 0.0, 1.0, 0.0,
+        0.0, 1.0, 0.0, 1.0, 0.0,
+        0.0, 1.0, 1.0, 1.0, 0.0
+    },
+    { // Digito 1
+        0.0, 0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 1.0, 0.0,
+        0.0, 0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0, 0.0,
+        0.0, 1.0, 1.0, 1.0, 0.0
+    },
+    { // Digito 2
+        0.0, 0.0, 1.0, 0.0, 0.0,
+        0.0, 1.0, 0.0, 1.0, 0.0,
+        0.0, 0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 1.0, 0.0,
+        0.0, 1.0, 1.0, 1.0, 0.0
+    },
+    { // Digito 3
+        0.0, 1.0, 1.0, 1.0, 0.0,
+        0.0, 1.0, 0.0, 0.0, 0.0,
+        0.0, 1.0, 1.0, 1.0, 0.0,
+        0.0, 1.0, 0.0, 0.0, 0.0,
+        0.0, 1.0, 1.0, 1.0, 0.0
+    },
+    { // Digito 4
+        0.0, 1.0, 0.0, 1.0, 0.0,
+        0.0, 1.0, 0.0, 1.0, 0.0,
+        0.0, 1.0, 1.0, 1.0, 0.0,
+        0.0, 1.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 1.0, 0.0
+    },
+    { // Digito 5
+        0.0, 1.0, 1.0, 1.0, 0.0,
+        0.0, 0.0, 0.0, 1.0, 0.0,
+        0.0, 1.0, 1.0, 1.0, 0.0,
+        0.0, 1.0, 0.0, 0.0, 0.0,
+        0.0, 1.0, 1.0, 1.0, 0.0
+    },
+    { // Digito 6
+        0.0, 1.0, 1.0, 1.0, 0.0,
+        0.0, 0.0, 0.0, 1.0, 0.0,
+        0.0, 1.0, 1.0, 1.0, 0.0,
+        0.0, 1.0, 0.0, 1.0, 0.0,
+        0.0, 1.0, 1.0, 1.0, 0.0
+    },
+    { // Digito 7
+        0.0, 1.0, 1.0, 1.0, 0.0,
+        0.0, 1.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0, 0.0
+    },
+    { // Digito 8
+        0.0, 1.0, 1.0, 1.0, 0.0,
+        0.0, 1.0, 0.0, 1.0, 0.0,
+        0.0, 1.0, 1.0, 1.0, 0.0,
+        0.0, 1.0, 0.0, 1.0, 0.0,
+        0.0, 1.0, 1.0, 1.0, 0.0
+    },
+    { // Digito 9
+        0.0, 1.0, 1.0, 1.0, 0.0,
+        0.0, 1.0, 0.0, 1.0, 0.0,
+        0.0, 1.0, 1.0, 1.0, 0.0,
+        0.0, 1.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 1.0, 0.0
+    }
+    
+    };
+
+void print_digit(int digit, PIO pio, uint sm, double r, double g, double b){
+    // Valor para intensidade dos LEDs
+    double ity = 0.01;
+
+    // Iniciando a variável que detém informação das cores de cada LED da matriz
+    uint32_t led_value;
+
+    // Condição para que os valores não ultrapassem o intervalor desejado
+    if (digit <= 9 && digit >= 0){
+        for (int16_t i = 0; i < NUM_PIXELS; i++) {
+            // Define a cor dos LEDs baseados nos valores de r, g e b
+            led_value = matrix_rgb(b*ity*(digits[digit][24 - i]), r*ity*(digits[digit][24 - i]), g*ity*(digits[digit][24 - i]));
+            pio_sm_put_blocking(pio, sm, led_value); // Envia o valor para o LED
+        }
+    } else if (digit < 0) {
+        printf("Valor incompatível.\n");
+    } else if (digit > 9){
+        printf("Valor incompatível.\n");
+    }
+}
+
 // Função principal
 int main() {
     // Inicializa clock, stdio e configurações
@@ -122,11 +244,20 @@ int main() {
     adc_setup();
     pwm_setup();
 
+    // Inicialização do PIO e das variáveis necessárias
+    PIO pio = pio0;
+    uint32_t led_value;
+    uint offset, sm;
+
+    pio_config(pio, &offset, &sm);
+
     printf("Sistema inicializado.\n");
 
     // Configuração dos botões como interrupções
     gpio_set_irq_enabled_with_callback(A_BUTTON, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
     gpio_set_irq_enabled_with_callback(J_BUTTON, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
+
+    print_digit(0, pio, sm, 0, 0, 0);
 
     // Inicialização do I2C. Usando em 400Khz.
     i2c_init(I2C_PORT, 400 * 1000);
@@ -135,19 +266,19 @@ int main() {
     gpio_set_function(I2C_SCL, GPIO_FUNC_I2C); // Configura o pino do GPIO para I2C
     gpio_pull_up(I2C_SDA); // Ativa um resistor Pull Up para linha de data
     gpio_pull_up(I2C_SCL); // Ativa um resistor Pull Up para linha de clock
-    ssd1306_init(&ssd, WIDTH, HEIGHT, false, endereco, I2C_PORT); // Inicializa o display
-    ssd1306_config(&ssd); // Configura o display
-    ssd1306_send_data(&ssd); // Envia os dados para o display
+    ssd1306_init(&ssd, WIDTH, HEIGHT, false, endereco, I2C_PORT); // Inicializa o aproximacao
+    ssd1306_config(&ssd); // Configura o aproximacao
+    ssd1306_send_data(&ssd); // Envia os dados para o aproximacao
 
-    // Limpa o display. O display inicia com todos os pixels apagados.
+    // Limpa o aproximacao. O aproximacao inicia com todos os pixels apagados.
     ssd1306_fill(&ssd, false);
     ssd1306_send_data(&ssd);
 
     int x_value, y_value = 0; // Inicializa as variáveis do valor dos eixos do joystick
 
-    int dx, dy = 0; // Inicializa as variáveis de controle da posição do quadrado do display
+    int dx, dy = 0; // Inicializa as variáveis de controle da posição do quadrado do aproximacao
 
-    int TAM = 8; // Define o tamanho do quadrado do display
+    int TAM = 8; // Define o tamanho do quadrado do aproximacao
 
     while (true) {
         
@@ -172,11 +303,13 @@ int main() {
             else if (x_value > 2730 && x_value < 3413){
                 pwm_set_gpio_level(G_LED, 4096 - (x_value-2048)*3);
                 pwm_set_gpio_level(R_LED, 4096);
+                print_digit(8, pio, sm, 0, 0, 0);
 
             }
             else if (x_value > 3413){
                 pwm_set_gpio_level(G_LED, 0);
                 pwm_set_gpio_level(R_LED, 4096);
+                print_digit(8, pio, sm, 1, 0, 0);
 
             }
             else if (x_value < 2048){
@@ -191,7 +324,7 @@ int main() {
             }
         }
         
-        // Definição dos valores de posição para que não ultrapassem o valor máximo do display
+        // Definição dos valores de posição para que não ultrapassem o valor máximo do aproximacao
         dx = 60-(x_value*60/4096)-(TAM/2);
         dy = y_value*120/4096;
 
@@ -213,7 +346,7 @@ int main() {
             ssd1306_rect(&ssd, dx, dy, TAM, TAM, 1, 1);
         }
 
-        ssd1306_send_data(&ssd); // Manda a informação para o display
+        ssd1306_send_data(&ssd); // Manda a informação para o aproximacao
 
         sleep_ms(50);
     }
