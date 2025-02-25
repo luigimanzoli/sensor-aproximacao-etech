@@ -1,0 +1,4 @@
+[wokwi]
+version = 1
+firmware = 'build/aproximacao.uf2'
+elf = 'build/aproximacao.elf'
