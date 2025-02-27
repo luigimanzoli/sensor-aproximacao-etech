@@ -147,99 +147,18 @@ void pio_config(PIO pio, uint *offset, uint *sm) {
     aproximacao_program_init(pio, *sm, *offset, OUT_PIN);
 }
 
-double digits[10][25] = {
-    { // Digito 0
-        0.0, 1.0, 1.0, 1.0, 0.0,
-        0.0, 1.0, 0.0, 1.0, 0.0,
-        0.0, 1.0, 0.0, 1.0, 0.0,
-        0.0, 1.0, 0.0, 1.0, 0.0,
-        0.0, 1.0, 1.0, 1.0, 0.0
-    },
-    { // Digito 1
-        0.0, 0.0, 1.0, 0.0, 0.0,
-        0.0, 0.0, 1.0, 1.0, 0.0,
-        0.0, 0.0, 1.0, 0.0, 0.0,
-        0.0, 0.0, 1.0, 0.0, 0.0,
-        0.0, 1.0, 1.0, 1.0, 0.0
-    },
-    { // Digito 2
-        0.0, 0.0, 1.0, 0.0, 0.0,
-        0.0, 1.0, 0.0, 1.0, 0.0,
-        0.0, 0.0, 1.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 1.0, 0.0,
-        0.0, 1.0, 1.0, 1.0, 0.0
-    },
-    { // Digito 3
-        0.0, 1.0, 1.0, 1.0, 0.0,
-        0.0, 1.0, 0.0, 0.0, 0.0,
-        0.0, 1.0, 1.0, 1.0, 0.0,
-        0.0, 1.0, 0.0, 0.0, 0.0,
-        0.0, 1.0, 1.0, 1.0, 0.0
-    },
-    { // Digito 4
-        0.0, 1.0, 0.0, 1.0, 0.0,
-        0.0, 1.0, 0.0, 1.0, 0.0,
-        0.0, 1.0, 1.0, 1.0, 0.0,
-        0.0, 1.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 1.0, 0.0
-    },
-    { // Digito 5
-        0.0, 1.0, 1.0, 1.0, 0.0,
-        0.0, 0.0, 0.0, 1.0, 0.0,
-        0.0, 1.0, 1.0, 1.0, 0.0,
-        0.0, 1.0, 0.0, 0.0, 0.0,
-        0.0, 1.0, 1.0, 1.0, 0.0
-    },
-    { // Digito 6
-        0.0, 1.0, 1.0, 1.0, 0.0,
-        0.0, 0.0, 0.0, 1.0, 0.0,
-        0.0, 1.0, 1.0, 1.0, 0.0,
-        0.0, 1.0, 0.0, 1.0, 0.0,
-        0.0, 1.0, 1.0, 1.0, 0.0
-    },
-    { // Digito 7
-        0.0, 1.0, 1.0, 1.0, 0.0,
-        0.0, 1.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 1.0, 0.0, 0.0,
-        0.0, 0.0, 1.0, 0.0, 0.0,
-        0.0, 0.0, 1.0, 0.0, 0.0
-    },
-    { // Digito 8
-        0.0, 1.0, 1.0, 1.0, 0.0,
-        0.0, 1.0, 0.0, 1.0, 0.0,
-        0.0, 1.0, 1.0, 1.0, 0.0,
-        0.0, 1.0, 0.0, 1.0, 0.0,
-        0.0, 1.0, 1.0, 1.0, 0.0
-    },
-    { // Digito 9
-        0.0, 1.0, 1.0, 1.0, 0.0,
-        0.0, 1.0, 0.0, 1.0, 0.0,
-        0.0, 1.0, 1.0, 1.0, 0.0,
-        0.0, 1.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 1.0, 0.0
-    }
-    
-    };
-
-void print_digit(int digit, PIO pio, uint sm, double r, double g, double b){
-    // Valor para intensidade dos LEDs
-    double ity = 0.01;
+void clear_matrix(PIO pio, uint sm){
 
     // Iniciando a variável que detém informação das cores de cada LED da matriz
     uint32_t led_value;
 
     // Condição para que os valores não ultrapassem o intervalor desejado
-    if (digit <= 9 && digit >= 0){
-        for (int16_t i = 0; i < NUM_PIXELS; i++) {
-            // Define a cor dos LEDs baseados nos valores de r, g e b
-            led_value = matrix_rgb(b*ity*(digits[digit][24 - i]), r*ity*(digits[digit][24 - i]), g*ity*(digits[digit][24 - i]));
-            pio_sm_put_blocking(pio, sm, led_value); // Envia o valor para o LED
-        }
-    } else if (digit < 0) {
-        printf("Valor incompatível.\n");
-    } else if (digit > 9){
-        printf("Valor incompatível.\n");
+    for (int16_t i = 0; i < NUM_PIXELS; i++) {
+        // Coloca valor 0 em todos os LEDs
+        led_value = matrix_rgb(0.0, 0.0, 0.0);
+        pio_sm_put_blocking(pio, sm, led_value); // Envia o valor para a matriz
     }
+   
 }
 
 void alarm_animation(PIO pio, uint sm, double r, double g, double b){
@@ -274,6 +193,11 @@ void alarm(){
     alarm_animation(pio, sm, 1, 0, 0);   
 }
 
+void clear_alarm(){
+    get_buzzer(0);
+    clear_matrix(pio, sm);
+}
+
 // Função principal
 int main() {
     // Inicializa clock, stdio e configurações
@@ -286,7 +210,7 @@ int main() {
 
     printf("Sistema inicializado.\n");
 
-    print_digit(0, pio, sm, 0, 0, 0);
+    clear_matrix(pio, sm);
 
     // Inicialização do I2C. Usando em 400Khz.
     i2c_init(I2C_PORT, 400 * 1000);
@@ -328,14 +252,12 @@ int main() {
                 //pwm_set_gpio_level(B_LED, x_value-2048);
                 pwm_set_gpio_level(G_LED, 4096);
                 pwm_set_gpio_level(R_LED, (x_value-2048)*3);
-                print_digit(8, pio, sm, 0, 0, 0);
-                get_buzzer(0);
+                clear_alarm();
             }
             else if (x_value > 2730 && x_value < 3413){
                 pwm_set_gpio_level(G_LED, 4096 - (x_value-2048)*3);
                 pwm_set_gpio_level(R_LED, 4096);
-                print_digit(8, pio, sm, 0, 0, 0);
-                get_buzzer(0);
+                clear_alarm();
             }
             else if (x_value > 3413){
                 pwm_set_gpio_level(G_LED, 0);
@@ -346,14 +268,12 @@ int main() {
                 //pwm_set_gpio_level(B_LED, x_value-2048);
                 pwm_set_gpio_level(G_LED, 4096);
                 pwm_set_gpio_level(R_LED, (2048-x_value)*3);
-                print_digit(8, pio, sm, 0, 0, 0);
-                get_buzzer(0);
+                clear_alarm();
             }
             else if (x_value < 1420 && x_value > 511){
                 pwm_set_gpio_level(G_LED, 4096 - (2048-x_value)*3);
                 pwm_set_gpio_level(R_LED, 4096);
-                print_digit(8, pio, sm, 0, 0, 0);
-                get_buzzer(0);
+                clear_alarm();
             }
             else if (x_value < 511){
                 pwm_set_gpio_level(G_LED, 0);
