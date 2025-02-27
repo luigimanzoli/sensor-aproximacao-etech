@@ -34,8 +34,8 @@ const int YAXIS = 27; const int ADCC_1 = 1; // Pino do eixo Y do Joystick e seu 
 
 const float PWM_DIVISER = 16.0; // Definindo o Divisor do PWM
 const uint16_t PERIOD = 2048; // Definindo o WRAP ou máxima contagem do PWM
-uint16_t R_LED_level, G_LED_level ,B_LED_level = 100;
-uint R_LED_slice, G_LED_slice, B_LED_slice;
+uint16_t R_LED_level, G_LED_level = 100;
+uint R_LED_slice, G_LED_slice;
 
 // Definição dos LEDs RGB
 #define R_LED 13
@@ -62,13 +62,6 @@ ssd1306_t ssd;
 
 // Inicialização dos lEDs e Botões
 void init_all() {
-    gpio_init(A_BUTTON);
-    gpio_set_dir(A_BUTTON, GPIO_IN);
-    gpio_pull_up(A_BUTTON);
-
-    gpio_init(J_BUTTON);
-    gpio_set_dir(J_BUTTON, GPIO_IN);
-    gpio_pull_up(J_BUTTON);
 
     gpio_init(A_BUZZER);
     gpio_set_dir(A_BUZZER, GPIO_OUT);
@@ -92,13 +85,6 @@ void pwm_setup(){
     pwm_set_wrap(R_LED_slice, PERIOD);  
     pwm_set_gpio_level(R_LED, R_LED_level);            
     pwm_set_enabled(R_LED_slice, true); 
-    
-    gpio_set_function(B_LED, GPIO_FUNC_PWM); 
-    uint B_LED_slice = pwm_gpio_to_slice_num(B_LED);   
-    pwm_set_clkdiv(B_LED_slice, PWM_DIVISER);            
-    pwm_set_wrap(B_LED_slice, PERIOD);
-    pwm_set_gpio_level(B_LED, B_LED_level);              
-    pwm_set_enabled(B_LED_slice, true);
     
     gpio_set_function(G_LED, GPIO_FUNC_PWM); 
     uint G_LED_slice = pwm_gpio_to_slice_num(G_LED);   
@@ -284,10 +270,8 @@ void alarm_animation(PIO pio, uint sm, double r, double g, double b){
 }
 
 void alarm(){
-
     get_buzzer(1);
     alarm_animation(pio, sm, 1, 0, 0);   
-
 }
 
 // Função principal
@@ -298,15 +282,9 @@ int main() {
     adc_setup();
     pwm_setup();
 
-    
-
     pio_config(pio, &offset, &sm);
 
     printf("Sistema inicializado.\n");
-
-    // Configuração dos botões como interrupções
-    gpio_set_irq_enabled_with_callback(A_BUTTON, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
-    gpio_set_irq_enabled_with_callback(J_BUTTON, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
 
     print_digit(0, pio, sm, 0, 0, 0);
 
@@ -345,7 +323,7 @@ int main() {
         printf("x_value = %i y_value = %i \n", x_value, y_value);
 
         // Caso o estado do LED seja ativo, controla sua intensidade 
-        if (led_state == true){
+        
             if (x_value > 2048 && x_value < 2730){
                 //pwm_set_gpio_level(B_LED, x_value-2048);
                 pwm_set_gpio_level(G_LED, 4096);
@@ -358,24 +336,30 @@ int main() {
                 pwm_set_gpio_level(R_LED, 4096);
                 print_digit(8, pio, sm, 0, 0, 0);
                 get_buzzer(0);
-
             }
             else if (x_value > 3413){
                 pwm_set_gpio_level(G_LED, 0);
                 pwm_set_gpio_level(R_LED, 4096);
                 alarm();
             }
-            else if (x_value < 2048){
-                //pwm_set_gpio_level(B_LED, 2048-x_value);
+            else if (x_value < 2048 && x_value > 1420){
+                //pwm_set_gpio_level(B_LED, x_value-2048);
+                pwm_set_gpio_level(G_LED, 4096);
+                pwm_set_gpio_level(R_LED, (2048-x_value)*3);
+                print_digit(8, pio, sm, 0, 0, 0);
+                get_buzzer(0);
             }
-
-            if (y_value > 2048){
-                //pwm_set_gpio_level(R_LED, y_value-2048); 
+            else if (x_value < 1420 && x_value > 511){
+                pwm_set_gpio_level(G_LED, 4096 - (2048-x_value)*3);
+                pwm_set_gpio_level(R_LED, 4096);
+                print_digit(8, pio, sm, 0, 0, 0);
+                get_buzzer(0);
             }
-            else if (y_value < 2048){
-                //pwm_set_gpio_level(R_LED, 2048-y_value);
+            else if (x_value < 511){
+                pwm_set_gpio_level(G_LED, 0);
+                pwm_set_gpio_level(R_LED, 4096);
+                alarm();
             }
-        }
         
         // Definição dos valores de posição para que não ultrapassem o valor máximo do aproximacao
         dx = 60-(x_value*60/4096)-(TAM/2);
@@ -384,22 +368,30 @@ int main() {
         // Imprime os valores no terminal para melhor visualização 
         printf("dx = %i, dy = %i \n", dx, dy);
 
+        // Apaga o display
         ssd1306_fill(&ssd, false);
 
-        if (led_state == false){
-            ssd1306_rect(&ssd, 2, 2, 124, 60, 1, 0);
-        }
-        ssd1306_rect(&ssd, 3, 3, 122, 58, 1, 0);
+        // Desenha os limites superiores e inferiores respeitando as condicionais
+        ssd1306_hline(&ssd, 0, 128, 3, 1);
+        ssd1306_hline(&ssd, 0, 128, 7, 1);
+        ssd1306_hline(&ssd, 0, 128, 18, 1);
+
+        ssd1306_hline(&ssd, 0, 128, 61, 1);
+        ssd1306_hline(&ssd, 0, 128, 57, 1);
+        ssd1306_hline(&ssd, 0, 128, 46, 1);
+
+        ssd1306_rect(&ssd, 3, 0, 128, 58, 1, 0);
 
         // Condicional para que não coloque valores negativos na função
         if (dx < 0){
+            // Desenho do objeto em movimento
             ssd1306_rect(&ssd, -dx, dy, TAM, TAM, 1, 1);
         }
         else{
+            // Desenho do objeto em movimento
             ssd1306_rect(&ssd, dx, dy, TAM, TAM, 1, 1);
         }
-
-        ssd1306_send_data(&ssd); // Manda a informação para o aproximacao
+        ssd1306_send_data(&ssd); // Manda a informação para o display
 
         sleep_ms(10);
     }
