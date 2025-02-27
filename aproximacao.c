@@ -265,7 +265,6 @@ int main() {
                 alarm();
             }
             else if (x_value < 2048 && x_value > 1420){
-                //pwm_set_gpio_level(B_LED, x_value-2048);
                 pwm_set_gpio_level(G_LED, 4096);
                 pwm_set_gpio_level(R_LED, (2048-x_value)*3);
                 clear_alarm();
